@@ -1,0 +1,2153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AquaLog">
+<meta name="theme-color" content="#040d14">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23040d14'/><text y='.9em' font-size='78' x='10'>🐠</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23040d14'/><text y='.9em' font-size='78' x='10'>🐠</text></svg>">
+<title>AquaLog</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#040d14;color:#cce8f4;font-family:system-ui,sans-serif;min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+input,textarea,select{-webkit-appearance:none;appearance:none;color:#cce8f4;font-family:inherit}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#0e3a5c;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+const {useState} = React;
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+const STORAGE_KEY_PARAMS = "aq_params";
+const STORAGE_KEY_LOGS = "aq_logs";
+const STORAGE_KEY_ESPECIES = "aq_especies";
+function useStore(key) {
+  const [data, setData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const save = v => {
+    setData(v);
+    localStorage.setItem(key, JSON.stringify(v));
+  };
+  return [data, save];
+}
+const fmtDate = s => {
+  if (!s) return "";
+  const [y, m, d] = s.split("-");
+  return `${d}/${m}/${y}`;
+};
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const nowTime = () => {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+};
+const daysDiff = s => {
+  if (!s) return null;
+  return Math.floor((new Date() - new Date(s + "T00:00:00")) / 86400000);
+};
+const phColor = v => v == null ? "#5b8fa8" : v >= 6.5 && v <= 7.5 ? "#00e5c0" : v >= 6 && v <= 8 ? "#ffd166" : "#ff6b6b";
+const tempColor = v => v == null ? "#5b8fa8" : v >= 24 && v <= 27 ? "#00e5c0" : v >= 22 && v <= 29 ? "#ffd166" : "#ff6b6b";
+const amoniaColor = v => v == null ? "#5b8fa8" : v === 0 ? "#00e5c0" : v < 0.25 ? "#ffd166" : "#ff6b6b";
+const nitritoColor = v => v == null ? "#5b8fa8" : v === 0 ? "#00e5c0" : v < 0.5 ? "#ffd166" : "#ff6b6b";
+const STORAGE_KEY_TANKS = "aq_tanks";
+const STORAGE_KEY_NOTAS = "aq_notas";
+const TIPOS = ["🔧 Manutenção", "💧 Troca d'água", "🌿 Plantas", "🐟 Peixes/Fauna", "💊 Medicamento", "🔩 Equipamento", "🍽️ Alimentação", "📌 Outro"];
+const ICONS = ["🐠", "🐟", "🦐", "🐌", "🐢", "🌿", "🪸", "🦞"];
+const TEMPS = ["Pacífico", "Semi-agressivo", "Agressivo", "Tímido", "Sociável"];
+
+// ── Confirm Modal ──────────────────────────────────────────
+function ConfirmModal({
+  msg,
+  onYes,
+  onNo
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onNo,
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(2,9,18,0.88)",
+      zIndex: 200,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      backdropFilter: "blur(6px)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      background: "#0a2540",
+      border: "1px solid rgba(255,107,107,0.35)",
+      borderRadius: 14,
+      padding: "28px 24px",
+      maxWidth: 320,
+      width: "90%",
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 32,
+      marginBottom: 12
+    }
+  }, "\uD83D\uDDD1\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      color: "#cce8f4",
+      marginBottom: 24,
+      lineHeight: 1.5
+    }
+  }, msg), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onNo,
+    style: {
+      padding: "9px 22px",
+      borderRadius: 100,
+      border: "1px solid rgba(0,200,224,0.25)",
+      background: "transparent",
+      color: "#5b8fa8",
+      fontFamily: "inherit",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
+    onClick: onYes,
+    style: {
+      padding: "9px 22px",
+      borderRadius: 100,
+      border: "1px solid rgba(255,107,107,0.4)",
+      background: "rgba(255,107,107,0.15)",
+      color: "#ff6b6b",
+      fontFamily: "inherit",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "Excluir"))));
+}
+
+// ── Shared UI ──────────────────────────────────────────────
+function ParamBadge({
+  label,
+  value,
+  color,
+  unit
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(2,15,26,0.6)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 10,
+      padding: "10px 6px",
+      textAlign: "center",
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "0.8px",
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      color,
+      lineHeight: 1
+    }
+  }, value ?? "—"), unit && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#5b8fa8",
+      marginTop: 2
+    }
+  }, unit));
+}
+function Modal({
+  show,
+  onClose,
+  title,
+  children
+}) {
+  if (!show) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.target === e.currentTarget && onClose(),
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(2,9,18,0.88)",
+      zIndex: 100,
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center",
+      backdropFilter: "blur(6px)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#0a2540",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: "14px 14px 0 0",
+      padding: "20px 16px 40px",
+      width: "100%",
+      maxWidth: 640,
+      maxHeight: "90vh",
+      overflowY: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#00c8e0",
+      letterSpacing: 1
+    }
+  }, title), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "none",
+      border: "none",
+      color: "#5b8fa8",
+      fontSize: 24,
+      cursor: "pointer",
+      lineHeight: 1,
+      padding: "2px 8px"
+    }
+  }, "\xD7")), children));
+}
+function Input({
+  label,
+  ...props
+}) {
+  return /*#__PURE__*/React.createElement("div", null, label && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "0.8px",
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("input", _extends({}, props, {
+    style: {
+      width: "100%",
+      background: "rgba(2,15,26,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 8,
+      color: "#cce8f4",
+      fontFamily: "inherit",
+      fontSize: 14,
+      padding: "10px 12px",
+      marginBottom: 12,
+      outline: "none",
+      WebkitAppearance: "none",
+      ...props.style
+    }
+  })));
+}
+function Textarea({
+  label,
+  ...props
+}) {
+  return /*#__PURE__*/React.createElement("div", null, label && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "0.8px",
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("textarea", _extends({}, props, {
+    style: {
+      width: "100%",
+      background: "rgba(2,15,26,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 8,
+      color: "#cce8f4",
+      fontFamily: "inherit",
+      fontSize: 14,
+      padding: "10px 12px",
+      marginBottom: 12,
+      outline: "none",
+      resize: "vertical",
+      minHeight: 70,
+      ...props.style
+    }
+  })));
+}
+function Sel({
+  label,
+  children,
+  ...props
+}) {
+  return /*#__PURE__*/React.createElement("div", null, label && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "0.8px",
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("select", _extends({}, props, {
+    style: {
+      width: "100%",
+      background: "#0a2540",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 8,
+      color: "#cce8f4",
+      fontFamily: "inherit",
+      fontSize: 14,
+      padding: "10px 12px",
+      marginBottom: 12,
+      outline: "none",
+      WebkitAppearance: "none",
+      ...props.style
+    }
+  }), children));
+}
+function Btn({
+  children,
+  danger,
+  ghost,
+  style,
+  ...props
+}) {
+  return /*#__PURE__*/React.createElement("button", _extends({}, props, {
+    style: {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      padding: "10px 20px",
+      borderRadius: 100,
+      border: danger ? "1px solid rgba(255,107,107,0.3)" : ghost ? "1px solid rgba(0,200,224,0.18)" : "none",
+      fontFamily: "inherit",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      background: danger ? "rgba(255,107,107,0.15)" : ghost ? "transparent" : "linear-gradient(135deg,#00c8e0,#00e5c0)",
+      color: danger ? "#ff6b6b" : ghost ? "#5b8fa8" : "#020f1a",
+      ...style
+    }
+  }), children);
+}
+function DelBtn({
+  onClick
+}) {
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    style: {
+      background: "rgba(255,107,107,0.1)",
+      border: "1px solid rgba(255,107,107,0.25)",
+      borderRadius: 8,
+      color: "#ff6b6b",
+      cursor: "pointer",
+      fontSize: 14,
+      padding: "4px 8px",
+      flexShrink: 0,
+      lineHeight: 1
+    }
+  }, "\uD83D\uDDD1");
+}
+
+// ── Dashboard ──────────────────────────────────────────────
+function Dashboard({
+  params,
+  logs,
+  especies
+}) {
+  const last = params[0];
+  const lastManut = logs.find(l => l.tipo.includes("Manutenção") || l.tipo.includes("Troca"));
+  const dias = lastManut ? daysDiff(lastManut.data) : null;
+  return /*#__PURE__*/React.createElement("div", null, dias !== null && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 14px",
+      borderRadius: 10,
+      fontSize: 13,
+      fontWeight: 600,
+      marginBottom: 12,
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      background: dias >= 7 ? "rgba(255,209,102,0.12)" : "rgba(0,229,192,0.1)",
+      border: dias >= 7 ? "1px solid rgba(255,209,102,0.3)" : "1px solid rgba(0,229,192,0.25)",
+      color: dias >= 7 ? "#ffd166" : "#00e5c0"
+    }
+  }, dias >= 7 ? `⚠️ Última manutenção há ${dias} dias — hora de agir!` : `✅ Última manutenção há ${dias} dias — tudo em dia!`), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10,
+      marginBottom: 14
+    }
+  }, [["🐟", especies.length, "Espécies"], ["📝", logs.length, "Atividades"], ["📊", params.length, "Medições"], ["📅", dias ?? "—", "Dias desde manut."]].map(([, n, lb]) => /*#__PURE__*/React.createElement("div", {
+    key: lb,
+    style: {
+      background: "rgba(2,15,26,0.6)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 12,
+      padding: 14,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 28,
+      fontWeight: 700,
+      color: "#00c8e0",
+      lineHeight: 1,
+      marginBottom: 4
+    }
+  }, n), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#5b8fa8",
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: "0.6px"
+    }
+  }, lb)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 14,
+      padding: 18,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 12,
+      letterSpacing: "1.5px",
+      color: "#00c8e0",
+      textTransform: "uppercase",
+      marginBottom: 12
+    }
+  }, "\uD83D\uDCA7 \xDAltimos Par\xE2metros"), last ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#5b8fa8",
+      marginBottom: 10
+    }
+  }, fmtDate(last.data), " ", last.hora), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(3,1fr)",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "pH",
+    value: last.ph,
+    color: phColor(last.ph)
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "GH",
+    value: last.gh,
+    color: "#00c8e0",
+    unit: "\xB0dH"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "KH",
+    value: last.kh,
+    color: "#00c8e0",
+    unit: "\xB0dH"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "Temp",
+    value: last.temp,
+    color: tempColor(last.temp),
+    unit: "\xB0C"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "NH\u2083",
+    value: last.amonia,
+    color: amoniaColor(last.amonia),
+    unit: "ppm"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "NO\u2082",
+    value: last.nitrito,
+    color: nitritoColor(last.nitrito),
+    unit: "ppm"
+  })), last.obs && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#5b8fa8",
+      marginTop: 10,
+      fontStyle: "italic"
+    }
+  }, "\"", last.obs, "\"")) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "20px 0"
+    }
+  }, "Nenhuma medi\xE7\xE3o ainda")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 14,
+      padding: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 12,
+      letterSpacing: "1.5px",
+      color: "#00c8e0",
+      textTransform: "uppercase",
+      marginBottom: 12
+    }
+  }, "\uD83D\uDCCB Atividades Recentes"), logs.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "20px 0"
+    }
+  }, "Nenhuma atividade") : logs.slice(0, 4).map(l => /*#__PURE__*/React.createElement("div", {
+    key: l.id,
+    style: {
+      display: "flex",
+      gap: 10,
+      padding: "10px 0",
+      borderBottom: "1px solid rgba(0,200,224,0.08)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      width: 32,
+      textAlign: "center",
+      flexShrink: 0
+    }
+  }, l.tipo.split(" ")[0]), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#5b8fa8",
+      marginBottom: 3
+    }
+  }, fmtDate(l.data), " ", l.hora, " \xB7 ", l.tipo.replace(/^\S+\s/, "")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      color: "#cce8f4"
+    }
+  }, l.desc))))));
+}
+
+// ── Parâmetros ─────────────────────────────────────────────
+function Parametros({
+  params,
+  addParam,
+  delParam
+}) {
+  const [show, setShow] = useState(false);
+  const [confirm, setConfirm] = useState(null); // id to delete
+  const [form, setForm] = useState({});
+  const f = k => e => setForm(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const save = () => {
+    if (!form.data) return;
+    addParam({
+      id: Date.now(),
+      data: form.data,
+      hora: form.hora || "",
+      ph: form.ph !== "" && form.ph !== undefined ? parseFloat(form.ph) : null,
+      gh: form.gh !== "" && form.gh !== undefined ? parseFloat(form.gh) : null,
+      kh: form.kh !== "" && form.kh !== undefined ? parseFloat(form.kh) : null,
+      temp: form.temp !== "" && form.temp !== undefined ? parseFloat(form.temp) : null,
+      amonia: form.amonia !== "" && form.amonia !== undefined ? parseFloat(form.amonia) : null,
+      nitrito: form.nitrito !== "" && form.nitrito !== undefined ? parseFloat(form.nitrito) : null,
+      nitrato: form.nitrato !== "" && form.nitrato !== undefined ? parseFloat(form.nitrato) : null,
+      obs: form.obs || ""
+    });
+    setForm({});
+    setShow(false);
+  };
+  return /*#__PURE__*/React.createElement("div", null, confirm !== null && /*#__PURE__*/React.createElement(ConfirmModal, {
+    msg: "Excluir esta medi\xE7\xE3o?",
+    onYes: () => {
+      delParam(confirm);
+      setConfirm(null);
+    },
+    onNo: () => setConfirm(null)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#e8f9fd"
+    }
+  }, "Par\xE2metros"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      setForm({
+        data: todayStr(),
+        hora: nowTime()
+      });
+      setShow(true);
+    }
+  }, "+ Nova Medi\xE7\xE3o")), params.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "40px 0"
+    }
+  }, "\uD83D\uDCA7 Nenhuma medi\xE7\xE3o registrada"), params.map(p => /*#__PURE__*/React.createElement("div", {
+    key: p.id,
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#00c8e0"
+    }
+  }, "\uD83D\uDCC5 ", fmtDate(p.data), " ", p.hora), /*#__PURE__*/React.createElement(DelBtn, {
+    onClick: () => setConfirm(p.id)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(3,1fr)",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "pH",
+    value: p.ph,
+    color: phColor(p.ph)
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "GH",
+    value: p.gh,
+    color: "#00c8e0",
+    unit: "\xB0dH"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "KH",
+    value: p.kh,
+    color: "#00c8e0",
+    unit: "\xB0dH"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "Temp",
+    value: p.temp,
+    color: tempColor(p.temp),
+    unit: "\xB0C"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "NH\u2083",
+    value: p.amonia,
+    color: amoniaColor(p.amonia),
+    unit: "ppm"
+  }), /*#__PURE__*/React.createElement(ParamBadge, {
+    label: "NO\u2082",
+    value: p.nitrito,
+    color: nitritoColor(p.nitrito),
+    unit: "ppm"
+  })), p.obs && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#5b8fa8",
+      marginTop: 8,
+      fontStyle: "italic"
+    }
+  }, "\"", p.obs, "\""))), /*#__PURE__*/React.createElement(Modal, {
+    show: show,
+    onClose: () => setShow(false),
+    title: "\uD83D\uDCA7 Nova Medi\xE7\xE3o"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "Data",
+    type: "date",
+    value: form.data || "",
+    onChange: f("data")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Hora",
+    type: "time",
+    value: form.hora || "",
+    onChange: f("hora")
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "pH",
+    type: "number",
+    step: "0.1",
+    placeholder: "7.0",
+    value: form.ph || "",
+    onChange: f("ph")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "GH \xB0dH",
+    type: "number",
+    step: "0.5",
+    placeholder: "8",
+    value: form.gh || "",
+    onChange: f("gh")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "KH \xB0dH",
+    type: "number",
+    step: "0.5",
+    placeholder: "4",
+    value: form.kh || "",
+    onChange: f("kh")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Temp \xB0C",
+    type: "number",
+    step: "0.1",
+    placeholder: "26",
+    value: form.temp || "",
+    onChange: f("temp")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Am\xF4nia",
+    type: "number",
+    step: "0.05",
+    placeholder: "0",
+    value: form.amonia || "",
+    onChange: f("amonia")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Nitrito",
+    type: "number",
+    step: "0.05",
+    placeholder: "0",
+    value: form.nitrito || "",
+    onChange: f("nitrito")
+  })), /*#__PURE__*/React.createElement(Input, {
+    label: "Nitrato ppm (opcional)",
+    type: "number",
+    step: "1",
+    placeholder: "0",
+    value: form.nitrato || "",
+    onChange: f("nitrato")
+  }), /*#__PURE__*/React.createElement(Textarea, {
+    label: "Observa\xE7\xF5es",
+    placeholder: "\xC1gua clara, peixes ativos...",
+    value: form.obs || "",
+    onChange: f("obs")
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: save,
+    style: {
+      width: "100%"
+    }
+  }, "\uD83D\uDCBE Salvar Medi\xE7\xE3o")));
+}
+
+// ── Atividades ─────────────────────────────────────────────
+function Atividades({
+  logs,
+  addLog,
+  delLog
+}) {
+  const [show, setShow] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [form, setForm] = useState({
+    tipo: TIPOS[0]
+  });
+  const f = k => e => setForm(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const save = () => {
+    if (!form.desc?.trim()) return;
+    addLog({
+      id: Date.now(),
+      data: form.data || todayStr(),
+      hora: form.hora || nowTime(),
+      tipo: form.tipo || TIPOS[0],
+      desc: form.desc
+    });
+    setForm({
+      tipo: TIPOS[0]
+    });
+    setShow(false);
+  };
+  return /*#__PURE__*/React.createElement("div", null, confirm !== null && /*#__PURE__*/React.createElement(ConfirmModal, {
+    msg: "Excluir esta atividade?",
+    onYes: () => {
+      delLog(confirm);
+      setConfirm(null);
+    },
+    onNo: () => setConfirm(null)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#e8f9fd"
+    }
+  }, "Atividades"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      setForm({
+        data: todayStr(),
+        hora: nowTime(),
+        tipo: TIPOS[0]
+      });
+      setShow(true);
+    }
+  }, "+ Nova")), logs.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "40px 0"
+    }
+  }, "\uD83D\uDCDD Nenhuma atividade ainda"), logs.map(l => /*#__PURE__*/React.createElement("div", {
+    key: l.id,
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      padding: "2px 8px",
+      borderRadius: 100,
+      background: "rgba(0,200,224,0.1)",
+      border: "1px solid rgba(0,200,224,0.25)",
+      color: "#00c8e0"
+    }
+  }, l.tipo), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#5b8fa8",
+      marginLeft: "auto"
+    }
+  }, fmtDate(l.data), " ", l.hora), /*#__PURE__*/React.createElement(DelBtn, {
+    onClick: () => setConfirm(l.id)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      color: "#cce8f4"
+    }
+  }, l.desc))), /*#__PURE__*/React.createElement(Modal, {
+    show: show,
+    onClose: () => setShow(false),
+    title: "\uD83D\uDCDD Nova Atividade"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "Data",
+    type: "date",
+    value: form.data || "",
+    onChange: f("data")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Hora",
+    type: "time",
+    value: form.hora || "",
+    onChange: f("hora")
+  })), /*#__PURE__*/React.createElement(Sel, {
+    label: "Tipo",
+    value: form.tipo || "",
+    onChange: f("tipo")
+  }, TIPOS.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t
+  }, t))), /*#__PURE__*/React.createElement(Textarea, {
+    label: "Descri\xE7\xE3o",
+    placeholder: "O que foi feito...",
+    value: form.desc || "",
+    onChange: f("desc"),
+    rows: 3
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: save,
+    style: {
+      width: "100%"
+    }
+  }, "\uD83D\uDCBE Salvar")));
+}
+
+// ── Espécies ───────────────────────────────────────────────
+function Especies({
+  especies,
+  addEspecie,
+  delEspecie
+}) {
+  const [show, setShow] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [form, setForm] = useState({
+    icon: ICONS[0],
+    temperamento: TEMPS[0]
+  });
+  const f = k => e => setForm(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const save = () => {
+    if (!form.nome?.trim()) return;
+    addEspecie({
+      id: Date.now(),
+      nome: form.nome,
+      sci: form.sci || "",
+      icon: form.icon || "🐟",
+      qtd: parseInt(form.qtd) || 1,
+      ph: form.ph || "",
+      temp: form.temp || "",
+      alim: form.alim || "",
+      temperamento: form.temperamento || "",
+      info: form.info || "",
+      data: form.data || todayStr()
+    });
+    setForm({
+      icon: ICONS[0],
+      temperamento: TEMPS[0],
+      data: todayStr()
+    });
+    setShow(false);
+  };
+  return /*#__PURE__*/React.createElement("div", null, confirm !== null && /*#__PURE__*/React.createElement(ConfirmModal, {
+    msg: "Excluir esta esp\xE9cie?",
+    onYes: () => {
+      delEspecie(confirm);
+      setConfirm(null);
+    },
+    onNo: () => setConfirm(null)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#e8f9fd"
+    }
+  }, "Esp\xE9cies"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      setForm({
+        icon: ICONS[0],
+        temperamento: TEMPS[0],
+        data: todayStr()
+      });
+      setShow(true);
+    }
+  }, "+ Adicionar")), especies.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "40px 0"
+    }
+  }, "\uD83D\uDC1F Nenhuma esp\xE9cie cadastrada"), especies.map(e => /*#__PURE__*/React.createElement("div", {
+    key: e.id,
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 12,
+      display: "flex",
+      gap: 14,
+      alignItems: "flex-start"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 28,
+      width: 48,
+      height: 48,
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,200,224,0.08)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      flexShrink: 0
+    }
+  }, e.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 8,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 15,
+      fontWeight: 600,
+      color: "#e8f9fd"
+    }
+  }, e.nome), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#5b8fa8",
+      fontSize: 13,
+      marginLeft: 6
+    }
+  }, "\xD7", e.qtd), e.sci && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontStyle: "italic",
+      color: "#5b8fa8"
+    }
+  }, e.sci)), /*#__PURE__*/React.createElement(DelBtn, {
+    onClick: () => setConfirm(e.id)
+  })), e.info && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: "#cce8f4",
+      lineHeight: 1.5,
+      marginBottom: 6
+    }
+  }, e.info), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 5
+    }
+  }, e.ph && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "3px 8px",
+      borderRadius: 100,
+      border: "1px solid rgba(0,200,224,0.4)",
+      background: "rgba(0,200,224,0.08)",
+      color: "#00c8e0"
+    }
+  }, "pH ", e.ph), e.temp && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "3px 8px",
+      borderRadius: 100,
+      border: "1px solid rgba(0,229,192,0.4)",
+      background: "rgba(0,229,192,0.08)",
+      color: "#00e5c0"
+    }
+  }, "\uD83C\uDF21 ", e.temp, "\xB0C"), e.temperamento && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "3px 8px",
+      borderRadius: 100,
+      border: "1px solid rgba(255,209,102,0.4)",
+      background: "rgba(255,209,102,0.08)",
+      color: "#ffd166"
+    }
+  }, e.temperamento), e.alim && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "3px 8px",
+      borderRadius: 100,
+      border: "1px solid rgba(255,107,107,0.4)",
+      background: "rgba(255,107,107,0.08)",
+      color: "#ff6b6b"
+    }
+  }, "\uD83C\uDF7D ", e.alim), e.tamanho && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "3px 8px",
+      borderRadius: 100,
+      border: "1px solid rgba(180,130,255,0.4)",
+      background: "rgba(180,130,255,0.08)",
+      color: "#b482ff"
+    }
+  }, "\uD83D\uDCCF at\xE9 ", e.tamanho, "cm", e.tamanhoAtual ? " · atual " + e.tamanhoAtual + "cm" : ""), e.data && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "3px 8px",
+      borderRadius: 100,
+      border: "1px solid rgba(0,200,224,0.18)",
+      color: "#5b8fa8"
+    }
+  }, "Desde ", fmtDate(e.data)))))), /*#__PURE__*/React.createElement(Modal, {
+    show: show,
+    onClose: () => setShow(false),
+    title: "\uD83D\uDC1F Nova Esp\xE9cie"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "Nome popular",
+    placeholder: "N\xE9on tetra",
+    value: form.nome || "",
+    onChange: f("nome")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Nome cient\xEDfico",
+    placeholder: "P. innesi",
+    value: form.sci || "",
+    onChange: f("sci")
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Sel, {
+    label: "\xCDcone",
+    value: form.icon || "",
+    onChange: f("icon")
+  }, ICONS.map(i => /*#__PURE__*/React.createElement("option", {
+    key: i
+  }, i))), /*#__PURE__*/React.createElement(Input, {
+    label: "Quantidade",
+    type: "number",
+    min: "1",
+    placeholder: "6",
+    value: form.qtd || "",
+    onChange: f("qtd")
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "pH ideal",
+    placeholder: "6.5 \u2013 7.5",
+    value: form.ph || "",
+    onChange: f("ph")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Temp ideal \xB0C",
+    placeholder: "24 \u2013 27",
+    value: form.temp || "",
+    onChange: f("temp")
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "Alimenta\xE7\xE3o",
+    placeholder: "Ra\xE7\xE3o micro...",
+    value: form.alim || "",
+    onChange: f("alim")
+  }), /*#__PURE__*/React.createElement(Sel, {
+    label: "Temperamento",
+    value: form.temperamento || "",
+    onChange: f("temperamento")
+  }, TEMPS.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t
+  }, t)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "Tamanho adulto (cm)",
+    type: "number",
+    step: "0.5",
+    placeholder: "5",
+    value: form.tamanho || "",
+    onChange: f("tamanho")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Tamanho atual (cm)",
+    type: "number",
+    step: "0.5",
+    placeholder: "3",
+    value: form.tamanhoAtual || "",
+    onChange: f("tamanhoAtual")
+  })), /*#__PURE__*/React.createElement(Textarea, {
+    label: "Informa\xE7\xF5es adicionais",
+    placeholder: "Prefere cardume, fundo escuro...",
+    value: form.info || "",
+    onChange: f("info")
+  }), /*#__PURE__*/React.createElement(Input, {
+    label: "Data de aquisi\xE7\xE3o",
+    type: "date",
+    value: form.data || "",
+    onChange: f("data")
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: save,
+    style: {
+      width: "100%"
+    }
+  }, "\uD83D\uDCBE Salvar Esp\xE9cie")));
+}
+
+// ── Notas ──────────────────────────────────────────────────
+function Notas({
+  notas,
+  saveNotas
+}) {
+  const [show, setShow] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [titulo, setTitulo] = useState("");
+  const [texto, setTexto] = useState("");
+  const [editId, setEditId] = useState(null);
+  const save = () => {
+    if (!texto.trim()) return;
+    if (editId !== null) {
+      saveNotas(notas.map(n => n.id === editId ? {
+        ...n,
+        titulo,
+        texto,
+        updatedAt: new Date().toISOString()
+      } : n));
+      setEditId(null);
+    } else {
+      saveNotas([{
+        id: Date.now(),
+        titulo,
+        texto,
+        createdAt: new Date().toISOString()
+      }, ...notas]);
+    }
+    setTitulo("");
+    setTexto("");
+    setShow(false);
+  };
+  const startEdit = n => {
+    setEditId(n.id);
+    setTitulo(n.titulo);
+    setTexto(n.texto);
+    setShow(true);
+  };
+  const fmtTs = s => {
+    if (!s) return "";
+    const d = new Date(s);
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  return /*#__PURE__*/React.createElement("div", null, confirm !== null && /*#__PURE__*/React.createElement(ConfirmModal, {
+    msg: "Excluir esta nota?",
+    onYes: () => {
+      saveNotas(notas.filter(n => n.id !== confirm));
+      setConfirm(null);
+    },
+    onNo: () => setConfirm(null)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#e8f9fd"
+    }
+  }, "Notas"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      setEditId(null);
+      setTitulo("");
+      setTexto("");
+      setShow(true);
+    }
+  }, "+ Nova Nota")), notas.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "40px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 36,
+      marginBottom: 10
+    }
+  }, "\uD83D\uDCD3"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14
+    }
+  }, "Nenhuma nota ainda"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      marginTop: 6,
+      lineHeight: 1.5
+    }
+  }, "Anote curiosidades, ra\xE7\xF5es, novidades,", " ", /*#__PURE__*/React.createElement("br", null), "dicas ou qualquer coisa do seu aqu\xE1rio")), notas.map(n => /*#__PURE__*/React.createElement("div", {
+    key: n.id,
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 8,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, n.titulo && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#e8f9fd",
+      marginBottom: 3
+    }
+  }, n.titulo), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#5b8fa8"
+    }
+  }, fmtTs(n.updatedAt || n.createdAt), n.updatedAt ? " (editado)" : "")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => startEdit(n),
+    style: {
+      background: "rgba(0,200,224,0.1)",
+      border: "1px solid rgba(0,200,224,0.25)",
+      borderRadius: 8,
+      color: "#00c8e0",
+      cursor: "pointer",
+      fontSize: 14,
+      padding: "4px 8px",
+      flexShrink: 0
+    }
+  }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement(DelBtn, {
+    onClick: () => setConfirm(n.id)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      color: "#cce8f4",
+      lineHeight: 1.6,
+      whiteSpace: "pre-wrap"
+    }
+  }, n.texto))), /*#__PURE__*/React.createElement(Modal, {
+    show: show,
+    onClose: () => setShow(false),
+    title: editId !== null ? "✏️ Editar Nota" : "📓 Nova Nota"
+  }, /*#__PURE__*/React.createElement(Input, {
+    label: "T\xEDtulo (opcional)",
+    placeholder: "Ex: Ra\xE7\xE3o, Curiosidade, Novidade...",
+    value: titulo,
+    onChange: e => setTitulo(e.target.value)
+  }), /*#__PURE__*/React.createElement(Textarea, {
+    label: "Texto livre",
+    placeholder: "Escreva o que quiser aqui...",
+    value: texto,
+    onChange: e => setTexto(e.target.value),
+    style: {
+      minHeight: 180
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: save,
+    style: {
+      width: "100%"
+    }
+  }, "\uD83D\uDCBE Salvar Nota")));
+}
+
+// ── App ────────────────────────────────────────────────────
+
+// ── Aquário ────────────────────────────────────────────────
+const TANK_DEFS = [{
+  key: "principal",
+  label: "Aquário Principal",
+  icon: "🐠",
+  color: "#00c8e0"
+}, {
+  key: "sump",
+  label: "Sump",
+  icon: "⚙️",
+  color: "#00e5c0"
+}, {
+  key: "hospital",
+  label: "Aquário Hospital",
+  icon: "🏥",
+  color: "#ffd166"
+}];
+const volLitros = (c, l, a, p = 100) => {
+  const v = (parseFloat(c) || 0) * (parseFloat(l) || 0) * (parseFloat(a) || 0) * (parseFloat(p) / 100) / 1000;
+  return v > 0 ? v.toFixed(1) : null;
+};
+function TankCard({
+  def,
+  data,
+  onSave
+}) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(data || {});
+  const f = k => e => setForm(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const vol = volLitros(form.comp, form.larg, form.alt, form.ocupacao || 100);
+  const hasData = data && (data.comp || data.larg || data.alt);
+  const save = () => {
+    onSave(form);
+    setEditing(false);
+  };
+  const fldSt = {
+    width: "100%",
+    background: "rgba(2,15,26,0.7)",
+    border: "1px solid rgba(0,200,224,0.18)",
+    borderRadius: 8,
+    color: "#cce8f4",
+    fontFamily: "inherit",
+    fontSize: 14,
+    padding: "9px 10px",
+    marginBottom: 10,
+    outline: "none",
+    WebkitAppearance: "none"
+  };
+  const lblSt = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#5b8fa8",
+    textTransform: "uppercase",
+    letterSpacing: "0.8px",
+    marginBottom: 4,
+    display: "block"
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(10,37,64,0.7)",
+      border: "1px solid rgba(0,200,224,0.18)",
+      borderRadius: 14,
+      padding: 18,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 38,
+      height: 38,
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 20,
+      background: "rgba(0,200,224,0.1)",
+      border: `1px solid ${def.color}60`
+    }
+  }, def.icon), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#e8f9fd"
+    }
+  }, def.label), vol && !editing && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: def.color,
+      fontWeight: 700,
+      marginTop: 1
+    }
+  }, "~", vol, " L"))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setForm(data || {});
+      setEditing(e => !e);
+    },
+    style: {
+      padding: "6px 14px",
+      borderRadius: 100,
+      border: `1px solid ${def.color}55`,
+      background: `${def.color}18`,
+      color: def.color,
+      fontFamily: "inherit",
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, editing ? "✕ Cancelar" : hasData ? "✏️ Editar" : "+ Configurar")), !editing && hasData && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(3,1fr)",
+      gap: 8,
+      marginBottom: 10
+    }
+  }, [["Comprimento", data.comp, "cm"], ["Largura", data.larg, "cm"], ["Altura", data.alt, "cm"]].map(([lb, val, un]) => /*#__PURE__*/React.createElement("div", {
+    key: lb,
+    style: {
+      background: "rgba(2,15,26,0.6)",
+      border: "1px solid rgba(0,200,224,0.14)",
+      borderRadius: 10,
+      padding: "10px 8px",
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "0.7px",
+      marginBottom: 4
+    }
+  }, lb), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: def.color,
+      lineHeight: 1
+    }
+  }, val || "—"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#5b8fa8",
+      marginTop: 2
+    }
+  }, un)))), (data.substrato || data.filtragem || data.iluminacao || data.ocupacao || data.obs) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(2,15,26,0.4)",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 13,
+      color: "#cce8f4",
+      lineHeight: 1.8
+    }
+  }, data.ocupacao && data.ocupacao !== "100" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#5b8fa8",
+      fontWeight: 700
+    }
+  }, "Ocupa\xE7\xE3o: "), data.ocupacao, "% \u2192 ~", volLitros(data.comp, data.larg, data.alt, data.ocupacao), " L \xFAteis"), data.substrato && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#5b8fa8",
+      fontWeight: 700
+    }
+  }, "Substrato: "), data.substrato), data.filtragem && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#5b8fa8",
+      fontWeight: 700
+    }
+  }, "Filtragem: "), data.filtragem), data.iluminacao && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#5b8fa8",
+      fontWeight: 700
+    }
+  }, "Ilumina\xE7\xE3o: "), data.iluminacao), data.obs && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 4,
+      fontStyle: "italic",
+      color: "#5b8fa8"
+    }
+  }, "\"", data.obs, "\""))), !editing && !hasData && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#5b8fa8",
+      padding: "10px 0",
+      fontSize: 13
+    }
+  }, "Nenhuma dimens\xE3o configurada ainda"), editing && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "1px",
+      marginBottom: 10
+    }
+  }, "\uD83D\uDCD0 Dimens\xF5es (cm)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Comprimento"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "0.5",
+    placeholder: "120",
+    value: form.comp || "",
+    onChange: f("comp"),
+    style: fldSt
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Largura"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "0.5",
+    placeholder: "50",
+    value: form.larg || "",
+    onChange: f("larg"),
+    style: fldSt
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Altura"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "0.5",
+    placeholder: "50",
+    value: form.alt || "",
+    onChange: f("alt"),
+    style: fldSt
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "% de ocupa\xE7\xE3o real (descontando rochas, substrato, etc.)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "50",
+    max: "100",
+    placeholder: "80",
+    value: form.ocupacao || "",
+    onChange: f("ocupacao"),
+    style: fldSt
+  })), vol && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: `${def.color}15`,
+      border: `1px solid ${def.color}40`,
+      borderRadius: 10,
+      padding: "10px 14px",
+      marginBottom: 12,
+      fontSize: 13,
+      fontWeight: 700,
+      color: def.color
+    }
+  }, "\uD83D\uDCA7 Volume bruto: ~", volLitros(form.comp, form.larg, form.alt), " L \xA0\xB7\xA0 Volume \xFAtil (~", form.ocupacao || 100, "%): ~", vol, " L"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#5b8fa8",
+      textTransform: "uppercase",
+      letterSpacing: "1px",
+      marginBottom: 10,
+      marginTop: 4
+    }
+  }, "\u2699\uFE0F Equipamentos"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Substrato"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Areia fina, calc\xE1rio...",
+    value: form.substrato || "",
+    onChange: f("substrato"),
+    style: fldSt
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Filtragem"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Sump, canister, HOB...",
+    value: form.filtragem || "",
+    onChange: f("filtragem"),
+    style: fldSt
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Ilumina\xE7\xE3o"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "LED 50W, T5...",
+    value: form.iluminacao || "",
+    onChange: f("iluminacao"),
+    style: fldSt
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lblSt
+  }, "Observa\xE7\xF5es"), /*#__PURE__*/React.createElement("textarea", {
+    rows: 2,
+    placeholder: "Notas gerais...",
+    value: form.obs || "",
+    onChange: f("obs"),
+    style: {
+      ...fldSt,
+      resize: "vertical",
+      minHeight: 60
+    }
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: save,
+    style: {
+      width: "100%",
+      padding: "11px",
+      borderRadius: 100,
+      border: "none",
+      background: "linear-gradient(135deg,#00c8e0,#00e5c0)",
+      color: "#020f1a",
+      fontFamily: "inherit",
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "\uD83D\uDCBE Salvar")));
+}
+function Aquario({
+  tanks,
+  saveTank
+}) {
+  const totalVol = TANK_DEFS.reduce((acc, def) => {
+    const d = tanks[def.key];
+    if (!d) return acc;
+    const v = parseFloat(volLitros(d.comp, d.larg, d.alt, d.ocupacao || 100));
+    return acc + (isNaN(v) ? 0 : v);
+  }, 0);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#e8f9fd"
+    }
+  }, "Meus Aqu\xE1rios"), totalVol > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#00c8e0",
+      background: "rgba(0,200,224,0.1)",
+      border: "1px solid rgba(0,200,224,0.25)",
+      padding: "4px 12px",
+      borderRadius: 100
+    }
+  }, "Total ~", totalVol.toFixed(1), " L")), TANK_DEFS.map(def => /*#__PURE__*/React.createElement(TankCard, {
+    key: def.key,
+    def: def,
+    data: tanks[def.key] || null,
+    onSave: d => saveTank(def.key, d)
+  })));
+}
+function App() {
+  const [params, setParams] = useStore(STORAGE_KEY_PARAMS);
+  const [logs, setLogs] = useStore(STORAGE_KEY_LOGS);
+  const [especies, setEspecies] = useStore(STORAGE_KEY_ESPECIES);
+  const [notas, setNotas] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_NOTAS) || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const saveNotas = v => {
+    setNotas(v);
+    localStorage.setItem(STORAGE_KEY_NOTAS, JSON.stringify(v));
+  };
+  const [tanks, setTanks] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_TANKS) || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const [tab, setTab] = useState("dashboard");
+  const [importMsg, setImportMsg] = useState("");
+  const addParam = rec => setParams([rec, ...params]);
+  const delParam = id => setParams(params.filter(p => p.id !== id));
+  const addLog = rec => setLogs([rec, ...logs]);
+  const delLog = id => setLogs(logs.filter(l => l.id !== id));
+  const addEspecie = rec => setEspecies([rec, ...especies]);
+  const delEspecie = id => setEspecies(especies.filter(e => e.id !== id));
+  const saveTank = (key, data) => {
+    const updated = {
+      ...tanks,
+      [key]: data
+    };
+    setTanks(updated);
+    localStorage.setItem(STORAGE_KEY_TANKS, JSON.stringify(updated));
+  };
+  const [backupJson, setBackupJson] = useState("");
+  const [showBackup, setShowBackup] = useState(false);
+  const exportData = () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      params,
+      logs,
+      especies,
+      tanks
+    };
+    setBackupJson(JSON.stringify(payload, null, 2));
+    setShowBackup(true);
+  };
+  const importData = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const d = JSON.parse(ev.target.result);
+        if (d.params) {
+          setParams(d.params);
+          localStorage.setItem(STORAGE_KEY_PARAMS, JSON.stringify(d.params));
+        }
+        if (d.logs) {
+          setLogs(d.logs);
+          localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(d.logs));
+        }
+        if (d.especies) {
+          setEspecies(d.especies);
+          localStorage.setItem(STORAGE_KEY_ESPECIES, JSON.stringify(d.especies));
+        }
+        if (d.tanks) {
+          setTanks(d.tanks);
+          localStorage.setItem(STORAGE_KEY_TANKS, JSON.stringify(d.tanks));
+        }
+        setImportMsg("✅ Backup restaurado com sucesso!");
+        setTimeout(() => setImportMsg(""), 3000);
+      } catch {
+        setImportMsg("❌ Arquivo inválido.");
+        setTimeout(() => setImportMsg(""), 3000);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+  const TABS = [{
+    id: "dashboard",
+    label: "🏠 Início"
+  }, {
+    id: "aquario",
+    label: "🪣 Aquários"
+  }, {
+    id: "parametros",
+    label: "📊 Parâmetros"
+  }, {
+    id: "atividades",
+    label: "📝 Atividades"
+  }, {
+    id: "especies",
+    label: "🐟 Espécies"
+  }, {
+    id: "notas",
+    label: "📓 Notas"
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: "#040d14",
+      color: "#cce8f4",
+      fontFamily: "Nunito,sans-serif",
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "radial-gradient(ellipse at 20% 50%,rgba(0,100,160,0.25) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,200,224,0.12) 0%,transparent 50%)",
+      pointerEvents: "none",
+      zIndex: 0
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      zIndex: 10,
+      padding: "18px 20px 0",
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 38,
+      height: 38,
+      background: "linear-gradient(135deg,#00c8e0,#00e5c0)",
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 18,
+      boxShadow: "0 0 20px rgba(0,200,224,0.4)"
+    }
+  }, "\uD83D\uDC20"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 20,
+      fontWeight: 700,
+      background: "linear-gradient(90deg,#00c8e0,#00e5c0)",
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      letterSpacing: 3
+    }
+  }, "AQUALOG"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginLeft: "auto",
+      display: "flex",
+      gap: 8,
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: exportData,
+    title: "Exportar backup",
+    style: {
+      padding: "6px 12px",
+      borderRadius: 100,
+      border: "1px solid rgba(0,229,192,0.4)",
+      background: "rgba(0,229,192,0.1)",
+      color: "#00e5c0",
+      fontFamily: "inherit",
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      whiteSpace: "nowrap"
+    }
+  }, "\u2B07\uFE0F Backup"), /*#__PURE__*/React.createElement("label", {
+    title: "Importar backup",
+    style: {
+      padding: "6px 12px",
+      borderRadius: 100,
+      border: "1px solid rgba(255,209,102,0.4)",
+      background: "rgba(255,209,102,0.1)",
+      color: "#ffd166",
+      fontFamily: "inherit",
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      whiteSpace: "nowrap"
+    }
+  }, "\u2B06\uFE0F Restaurar", /*#__PURE__*/React.createElement("input", {
+    type: "file",
+    accept: ".json",
+    onChange: importData,
+    style: {
+      display: "none"
+    }
+  })))), importMsg && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      zIndex: 10,
+      margin: "0 16px 4px",
+      padding: "8px 14px",
+      borderRadius: 10,
+      fontSize: 13,
+      fontWeight: 600,
+      background: importMsg.startsWith("✅") ? "rgba(0,229,192,0.12)" : "rgba(255,107,107,0.12)",
+      border: importMsg.startsWith("✅") ? "1px solid rgba(0,229,192,0.3)" : "1px solid rgba(255,107,107,0.3)",
+      color: importMsg.startsWith("✅") ? "#00e5c0" : "#ff6b6b"
+    }
+  }, importMsg), showBackup && /*#__PURE__*/React.createElement("div", {
+    onClick: () => setShowBackup(false),
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(2,9,18,0.92)",
+      zIndex: 200,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      backdropFilter: "blur(6px)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      background: "#0a2540",
+      border: "1px solid rgba(0,229,192,0.3)",
+      borderRadius: 14,
+      padding: "20px 16px",
+      width: "92%",
+      maxWidth: 560,
+      maxHeight: "85vh",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "Georgia,serif",
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#00e5c0",
+      letterSpacing: 1
+    }
+  }, "\uD83D\uDCBE Backup \u2014 Copie o texto abaixo"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowBackup(false),
+    style: {
+      background: "none",
+      border: "none",
+      color: "#5b8fa8",
+      fontSize: 22,
+      cursor: "pointer"
+    }
+  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#5b8fa8",
+      lineHeight: 1.5
+    }
+  }, "Selecione todo o texto, copie e salve num arquivo ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#cce8f4"
+    }
+  }, ".txt"), " ou ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#cce8f4"
+    }
+  }, ".json"), " no seu celular ou nuvem."), /*#__PURE__*/React.createElement("textarea", {
+    readOnly: true,
+    value: backupJson,
+    onFocus: e => e.target.select(),
+    style: {
+      flex: 1,
+      minHeight: 260,
+      background: "rgba(2,15,26,0.8)",
+      border: "1px solid rgba(0,200,224,0.2)",
+      borderRadius: 10,
+      color: "#00e5c0",
+      fontFamily: "monospace",
+      fontSize: 11,
+      padding: "10px",
+      outline: "none",
+      resize: "none",
+      overflowY: "auto"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      navigator.clipboard && navigator.clipboard.writeText(backupJson).then(() => {
+        setShowBackup(false);
+        setImportMsg("✅ Copiado! Cole num arquivo .json e salve.");
+        setTimeout(() => setImportMsg(""), 4000);
+      });
+    },
+    style: {
+      padding: "11px",
+      borderRadius: 100,
+      border: "none",
+      background: "linear-gradient(135deg,#00c8e0,#00e5c0)",
+      color: "#020f1a",
+      fontFamily: "inherit",
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "\uD83D\uDCCB Copiar tudo"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      zIndex: 10,
+      display: "flex",
+      gap: 6,
+      padding: "14px 16px",
+      overflowX: "auto"
+    }
+  }, TABS.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    onClick: () => setTab(t.id),
+    style: {
+      flexShrink: 0,
+      padding: "8px 16px",
+      borderRadius: 100,
+      border: tab === t.id ? "1px solid #00c8e0" : "1px solid rgba(0,200,224,0.18)",
+      background: tab === t.id ? "linear-gradient(135deg,#1a5f8a,#0e3a5c)" : "rgba(10,37,64,0.7)",
+      color: tab === t.id ? "#00c8e0" : "#5b8fa8",
+      fontFamily: "Nunito,sans-serif",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      whiteSpace: "nowrap",
+      boxShadow: tab === t.id ? "0 0 12px rgba(0,200,224,0.2)" : "none"
+    }
+  }, t.label))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      zIndex: 10,
+      padding: "0 16px 80px",
+      maxWidth: 680,
+      margin: "0 auto"
+    }
+  }, tab === "dashboard" && /*#__PURE__*/React.createElement(Dashboard, {
+    params: params,
+    logs: logs,
+    especies: especies
+  }), tab === "parametros" && /*#__PURE__*/React.createElement(Parametros, {
+    params: params,
+    addParam: addParam,
+    delParam: delParam
+  }), tab === "atividades" && /*#__PURE__*/React.createElement(Atividades, {
+    logs: logs,
+    addLog: addLog,
+    delLog: delLog
+  }), tab === "aquario" && /*#__PURE__*/React.createElement(Aquario, {
+    tanks: tanks,
+    saveTank: saveTank
+  }), tab === "especies" && /*#__PURE__*/React.createElement(Especies, {
+    especies: especies,
+    addEspecie: addEspecie,
+    delEspecie: delEspecie
+  }), tab === "notas" && /*#__PURE__*/React.createElement(Notas, {
+    notas: notas,
+    saveNotas: saveNotas
+  })));
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
+})();
+</script>
+</body>
+</html>
