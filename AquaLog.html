@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AquaLog - Teste</title>
+<style>
+body{background:#040d14;color:#cce8f4;font-family:system-ui,sans-serif;padding:20px}
+.ok{color:#00e5c0}.err{color:#ff6b6b}.warn{color:#ffd166}
+pre{font-size:11px;word-break:break-all;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h2>🐠 AquaLog — Diagnóstico</h2>
+<div id="log"></div>
+<script>
+const log = (msg, type='ok') => {
+  const d = document.createElement('div');
+  d.className = type;
+  d.textContent = (type==='ok'?'✅ ':type==='err'?'❌ ':'⚠️ ') + msg;
+  document.getElementById('log').appendChild(d);
+};
+
+// Test 1: React
+try {
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js';
+  s.onload = () => {
+    log('React carregado OK');
+    
+    // Test 2: ReactDOM
+    const s2 = document.createElement('script');
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js';
+    s2.onload = () => {
+      log('ReactDOM carregado OK');
+      
+      // Test 3: Firebase app
+      const s3 = document.createElement('script');
+      s3.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+      s3.onload = () => {
+        log('Firebase App carregado OK');
+        
+        // Test 4: Firebase DB
+        const s4 = document.createElement('script');
+        s4.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+        s4.onload = () => {
+          log('Firebase Database carregado OK');
+          
+          // Test 5: Init Firebase
+          try {
+            firebase.initializeApp({
+              apiKey: "AIzaSyC3P9xZLAFA4IaxkA7dwApAfLMuwmzY2QE",
+              databaseURL: "https://aqualog-3bfb0-default-rtdb.firebaseio.com",
+              projectId: "aqualog-3bfb0",
+              appId: "1:394339304862:web:67e26f47d44a9da418c28f"
+            });
+            window._fbdb = firebase.database();
+            log('Firebase inicializado OK');
+            
+            // Test 6: Read from DB
+            window._fbdb.ref('test').set('ok').then(()=>{
+              log('Escrita no Firebase OK');
+              window._fbdb.ref('test').once('value').then(snap=>{
+                log('Leitura no Firebase OK: ' + snap.val());
+                log('🎉 TUDO OK! O problema é no código do app.');
+              });
+            }).catch(e => log('Erro Firebase DB: ' + e.message, 'err'));
+            
+          } catch(e) { log('Erro init Firebase: ' + e.message, 'err'); }
+        };
+        s4.onerror = () => log('Falha ao carregar Firebase Database', 'err');
+        document.head.appendChild(s4);
+      };
+      s3.onerror = () => log('Falha ao carregar Firebase App', 'err');
+      document.head.appendChild(s3);
+    };
+    s2.onerror = () => log('Falha ao carregar ReactDOM', 'err');
+    document.head.appendChild(s2);
+  };
+  s.onerror = () => log('Falha ao carregar React', 'err');
+  document.head.appendChild(s);
+} catch(e) { log('Erro geral: ' + e.message, 'err'); }
+</script>
+</body>
+</html>
